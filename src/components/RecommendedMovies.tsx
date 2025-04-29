@@ -36,8 +36,7 @@ export const RecommendedMovies: React.FC<RecommendedMoviesProps> = ({
         return;
       }
       
-      // Set a default base title or get it from somewhere else
-      setBaseMovieTitle("Your watched movies");
+     
       
       // Use recommendations.results instead of recommendations.recommendations
       const movieDetailsPromises = recommendations.results.map(
@@ -86,7 +85,7 @@ export const RecommendedMovies: React.FC<RecommendedMoviesProps> = ({
   return (
     <div className="mt-12 px-8">
       <h2 className="text-2xl font-bold mb-4">
-        Because you watched: {baseMovieTitle}
+       You might also like
       </h2>
       
       <div 
