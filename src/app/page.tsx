@@ -1,103 +1,204 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Featured } from '@/components/Featured';
+import { ContentCarousel } from '@/components/ContentCarousel';
+import { RecommendedMovies } from '@/components/RecommendedMovies';
+import { 
+  getGenreName, 
+  getImageUrl, 
+  Movie
+} from '@/utils/MovieUtils';
+import {
+  fetchTrendingMovies,
+  fetchPopularMovies,
+  fetchTopRatedSeries,
+  fetchMovieDetails,
+  fetchMovieVideos,
+  fetchTvVideos
+} from '@/services/MovieService';
+import { TrailerModal } from '@/components/TrailerModal';
+import { Header } from '@/components/Header';
+import { getWatchedMovies } from '@/services/WatchedMovieService';
 
-export default function Home() {
+function Home() {
+  // State for selected featured movie ID
+  const [featuredMovieId, setFeaturedMovieId] = useState<number | null>(null);
+  // State for trailer modal
+  const [trailerOpen, setTrailerOpen] = useState<boolean>(false);
+  const [selectedTrailerKey, setSelectedTrailerKey] = useState<string>('');
+  const [trailerType, setTrailerType] = useState<'movie' | 'tv'>('movie');
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  // Track when watch history changes
+  const [watchHistoryUpdated, setWatchHistoryUpdated] = useState<number>(Date.now());
+
+  // Set up an event listener for storage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setWatchHistoryUpdated(Date.now());
+    };
+
+    // Listen for changes to localStorage
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+  
+  // Fetch trending movies for hero section
+  const { data: trendingMovies, isLoading: isTrendingLoading } = useQuery({
+    queryKey: ['trendingMovies'],
+    queryFn: fetchTrendingMovies,
+  });
+
+  // Fetch popular movies for "Recent Releases" section
+  const { data: popularMovies, isLoading: isPopularLoading } = useQuery({
+    queryKey: ['popularMovies'],
+    queryFn: fetchPopularMovies,
+  });
+
+  // Fetch top-rated TV series for "Featured Series" section
+  const { data: topRatedSeries, isLoading: isSeriesLoading } = useQuery({
+    queryKey: ['topRatedSeries'],
+    queryFn: fetchTopRatedSeries,
+  });
+
+  // Once we have trending movies, use the first one as featured movie
+  React.useEffect(() => {
+    if (trendingMovies && trendingMovies.length > 0) {
+      // Check watch history to possibly feature a recently watched movie
+      const watched = getWatchedMovies();
+      if (watched.length > 0) {
+        // Get the most recently watched movie
+        const mostRecent = [...watched].sort((a, b) => b.watchedAt - a.watchedAt)[0];
+        if (mostRecent.type === 'movie') {
+          setFeaturedMovieId(mostRecent.id);
+        } else {
+          setFeaturedMovieId(trendingMovies[0].id);
+        }
+      } else {
+        setFeaturedMovieId(trendingMovies[0].id);
+      }
+    }
+  }, [trendingMovies, watchHistoryUpdated]);
+
+  // Fetch detailed information for the featured movie
+  const { data: featuredMovie, isLoading: isFeaturedLoading } = useQuery({
+    queryKey: ['movie', featuredMovieId],
+    queryFn: () => fetchMovieDetails(featuredMovieId),
+    enabled: !!featuredMovieId,
+  });
+
+  // Fetch videos for the selected item (movie or TV)
+  const { data: videos, isLoading: isVideosLoading } = useQuery({
+    queryKey: ['videos', trailerType, selectedItemId],
+    queryFn: () => 
+      trailerType === 'movie' 
+        ? fetchMovieVideos(selectedItemId)
+        : fetchTvVideos(selectedItemId),
+    enabled: !!selectedItemId,
+  });
+
+  // Handle opening the trailer modal
+  const openTrailer = async (id: number, type: 'movie' | 'tv' = 'movie') => {
+    setSelectedItemId(id);
+    setTrailerType(type);
+    setTrailerOpen(true);
+    
+    // Trigger UI update for watched status after watching
+    setTimeout(() => {
+      setWatchHistoryUpdated(Date.now());
+    }, 500);
+  };
+
+  // Watch for videos data and set the trailer key
+  React.useEffect(() => {
+    if (videos && videos.length > 0) {
+      // Find the first trailer or teaser
+      const trailer = videos.find(
+        video => 
+          video.site === 'YouTube' && 
+          (video.type === 'Trailer' || video.type === 'Teaser')
+      );
+      
+      if (trailer) {
+        setSelectedTrailerKey(trailer.key);
+      } else if (videos.length > 0 && videos[0].site === 'YouTube') {
+        // If no trailer/teaser found, use the first YouTube video
+        setSelectedTrailerKey(videos[0].key);
+      }
+    }
+  }, [videos]);
+
+  // Close trailer modal
+  const closeTrailer = () => {
+    setTrailerOpen(false);
+    setSelectedTrailerKey('');
+  };
+
+  // Loading state
+  const isLoading = isTrendingLoading || isPopularLoading || isSeriesLoading || isFeaturedLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900">
+        <div className="text-white text-2xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header Component */}
+      <Header username="John" />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      {/* Hero Section - Featured Movie Component */}
+      {featuredMovie && (
+        <Featured 
+          featuredMovie={featuredMovie} 
+          openTrailer={openTrailer} 
+          getImageUrl={getImageUrl} 
+        />
+      )}
+      
+      {/* Recommended Movies Section - based on watch history */}
+      <RecommendedMovies onTrailerClick={openTrailer} />
+
+      {/* Recent Releases Section - ContentCarousel Component */}
+      {popularMovies && (
+        <ContentCarousel
+          id="recentReleases"
+          title="Recent Releases"
+          items={popularMovies}
+          type="movie"
+          onTrailerClick={openTrailer}
+          getImageUrl={getImageUrl}
+          getGenreName={getGenreName}
+        />
+      )}
+
+      {/* Featured Series Section - ContentCarousel Component */}
+      {topRatedSeries && (
+        <ContentCarousel
+          id="featuredSeries"
+          title="Featured Series"
+          items={topRatedSeries}
+          type="tv"
+          onTrailerClick={openTrailer}
+          getImageUrl={getImageUrl}
+          getGenreName={getGenreName}
+        />
+      )}
+
+      {/* Trailer Modal Component */}
+      <TrailerModal
+        isOpen={trailerOpen}
+        onClose={closeTrailer}
+        trailerKey={selectedTrailerKey}
+        isLoading={isVideosLoading}
+      />
     </div>
   );
 }
+
+export default Home;
