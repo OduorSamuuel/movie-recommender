@@ -82,12 +82,7 @@ export const Featured: React.FC<FeaturedProps> = ({
         </div>
       </div>
       
-      {/* Pagination dots */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
-        <button className="w-2 h-2 rounded-full bg-white"></button>
-        <button className="w-2 h-2 rounded-full bg-gray-500"></button>
-        <button className="w-2 h-2 rounded-full bg-gray-500"></button>
-      </div>
+   
       
       {/* Navigation arrows */}
       <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20">

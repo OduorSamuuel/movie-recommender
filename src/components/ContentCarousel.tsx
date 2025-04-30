@@ -2,7 +2,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieCard } from '@/components/MovieCard';
-import { Movie } from '@/utils/MovieUtils';
 
 interface ContentCarouselProps {
   id: string;
@@ -103,8 +102,19 @@ export const ContentCarousel: React.FC<ContentCarouselProps> = ({
         <div 
           ref={containerRef}
           id={id}
-          className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide scroll-smooth snap-x snap-mandatory"
+          className="flex space-x-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
+          style={{ 
+            scrollbarWidth: 'none',  /* Firefox */
+            msOverflowStyle: 'none',  /* IE and Edge */
+          }}
         >
+          {/* Hide scrollbar for Chrome, Safari and Opera */}
+          <style jsx>{`
+            #${id}::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          
           {items.map((item) => (
             <div key={item.id} className="snap-start flex-shrink-0">
               <MovieCard
